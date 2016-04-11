@@ -1,0 +1,29 @@
+{% load staticfiles %}
+<html>
+<head>
+	<link rel="stylesheet" href="{% static "jotstuff/general.css" %}" type="text/css" />
+<div class="header">
+<div class="container">
+	<div class="nav">
+		<ul>
+			<li><a href='/'> Home </a></li>
+			<li> | </li>
+			<li><a href='/play'> Play </a></li>
+			<li> | </li>
+			<li><a href='/logout'> Logout </a></li>
+		</ul>
+	</div>
+</div>	
+</div>
+<br><br>
+		<h1>Welcome, </h1> {{ user }}
+			<br><br>
+
+	    <h3>Upload a profile Pic: </h3>
+		<form action="/user_profile/" method="POST" enctype="multipart/form-data">
+			{% csrf_token %}
+			{{ form }}
+			<button type="submit" class="button_base b01_simple_rollover"> s u b m i t</button>
+		</form>
+</head>
+</html>

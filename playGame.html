@@ -1,0 +1,216 @@
+{% load staticfiles %}
+<link rel="stylesheet" href="{% static "jotstuff/general.css" %}" type="text/css"/>
+<link rel='stylesheet' href="{% static "jotstuff/sweetAlert.css" %}" type="text/css">
+<script src='https://cdn.rawgit.com/t4t5/sweetalert/v0.2.0/lib/sweet-alert.min.js'></script>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Arvo">
+  </head>
+<body>
+<div class="header">
+<div class="container">
+	<div class="nav">
+		<ul>
+			<li><a href='/'> Home </a></li>
+			<li> | </li>
+			<li><a href='/login'> Log In </a></li>
+			<li> | </li>
+			<li><a href='/logout'> Logout </a></li>
+			<li> | </li>
+			<li><a href='/user_profile'> Profile </a></li>
+			<li><img src="{{pic}}" width="25" height="25"></li>
+		</ul>
+	</div>
+</div>	
+</div>
+</body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.1/jquery.min.js" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+$.ajaxSetup({ 
+     beforeSend: function(xhr, settings) {
+         function getCookie(name) {
+             var cookieValue = null;
+             if (document.cookie && document.cookie != '') {
+                 var cookies = document.cookie.split(';');
+                 for (var i = 0; i < cookies.length; i++) {
+                     var cookie = jQuery.trim(cookies[i]);
+                     if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                         cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                         break;
+                     }
+                 }
+             }
+             return cookieValue;
+         }
+         if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+             xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+         }
+     } 
+});
+
+var array_of_words = []
+
+$.ajax({
+    url: "http://s3-us-west-1.amazonaws.com/molly1murphy/JustFives.csv",
+    async: false,
+    success: function (csvd) {
+        array_of_words = [].concat.apply([],$.csv.toArrays(csvd));
+    },
+	    dataType: "text",
+	    complete: function () {
+	    }
+});
+
+// console.log(array_of_words)
+
+var computer_guess = ""
+var userGuess = ""
+var userGuessNum = 0
+computer_guess_array = []
+
+$.ajax({
+    url: "https://s3-us-west-1.amazonaws.com/molly1murphy/ComputerGuess.csv",
+    async: false,
+    success: function (csvd) {
+        computer_guess_array = [].concat.apply([],$.csv.toArrays(csvd));
+    },
+	    dataType: "text",
+	    complete: function () {
+	    }
+});
+
+function store_computerWord() {
+	var i = Math.floor(Math.random() * 608 + 1);
+	computer_guess = computer_guess_array[i];
+	console.log(computer_guess_array);
+	console.log(computer_guess);
+}
+
+function check_dictionary() {
+	if ($.inArray(userGuess, array_of_words) === -1) {
+		swal ("Oops!","You need to enter a valid word!");
+		return false
+	} else {
+		return true
+	}
+}
+
+function forceLower(strInput) {
+	strInput.value=strInput.value.toLowerCase();
+}
+
+function store_userGuess() {
+	++userGuessNum;
+	var ug = document.getElementById("userGuess");
+	userGuess = ug.value;
+	// console.log(computer_guess);
+
+		if (userGuess.length != 5) {
+			swal ("Oops!","You need to enter a valid five-letter word!");
+		}
+		else {
+			correct = check_dictionary();
+			if (correct === true) {
+				letterResponse();
+			} 
+			else {
+			}
+		}
+
+	if(userGuess === computer_guess) {
+		send_win();
+		winner();
+	}
+}
+
+function letterResponse() {
+	var splitString = userGuess.split("");
+	var divResults = document.getElementById("results");
+	var unique = splitString.filter(function(item, i, ar){ return ar.indexOf(item) === i; });
+	var x = 0;
+		for (index in unique) {
+			var letter = unique[index];
+			var guessed = document.getElementById("alpha").innerHTML.replace(letter.toUpperCase(),"<span class='guessedletter'>" + letter.toUpperCase() + "</span>");
+			document.getElementById("alpha").innerHTML = guessed;
+				if(computer_guess.indexOf(letter) === -1) {
+					console.log("Not in word");
+					}
+				else {
+					++x;
+				}
+		}
+				if(x === 0) {
+					for (index in splitString) {
+						var letter = splitString[index];
+						var ruledOut = document.getElementById("alpha").innerHTML.replace(letter.toUpperCase(),"_");
+						document.getElementById("alpha").innerHTML = ruledOut;
+					}
+				}
+divResults.innerHTML += userGuess + "     " + x + "<br>";
+}
+function winner() {
+	 	swal({   
+		title: "CONGRATULATIONS!",
+		text: "You won! " + computer_guess.toUpperCase() + " was the word!",   
+		html: true,
+		confirmButtonText: "Play Again!",
+		showCancelButton: true,   
+		confirmButtonColor: "#EA3556",      
+		cancelButtonText: "I'm Done",
+		cancelButtonColor: "#FC9505",   
+		closeOnConfirm: false,   
+		closeOnCancel: false }, 
+
+	   	function(isConfirm) {   
+	   		if (isConfirm) {     
+	   			window.location="/play"; 
+	   		} 
+	   		else {     
+	   			swal("We're sad to see you go", "error");
+	   			window.location="/";   
+	   		} 
+	});
+}
+
+function send_win() { 
+	console.log(userGuess)
+	$.ajax({
+		type: 'POST',
+		url: '/storeMatch/',
+		data: { 
+		userGuess: userGuess, 
+		userGuessNum: userGuessNum,
+	},
+			success: function (response) {
+				console.log("SUCCESS!");
+			},
+			error: function () {
+				console.log("error");
+			}
+	});
+}
+
+</script> 
+<body onload="store_computerWord()">
+<br>
+	<div id="alpha">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z</div> 
+
+		<h2> Enter your guess: </h2>
+		<h4>( a five-letter word )</h4>
+			<input id="userGuess" type="string" maxlength="5" onkeyup="return forceLower(this);"/>
+			<button type="button" onclick="store_userGuess()" class="button_base b01_simple_rollover"> s u b m i t</button>
+		<h3> Your guesses so far: </h3>
+		<div id="results"> </div>
+
+<br><br><br>
+
+	<h4> scratch pad: </h4>
+	<input id="scratchPad" type="string" maxlength="40">
+
+<br><br><br>
+
+<a href="/leaderboard", "font-size: 14pt">Leaderboard</a>
+
